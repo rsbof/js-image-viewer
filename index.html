@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Image Viewer</title>
+    <style>
+      .modal {
+        display: none;
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 9999;
+        background: rgba(0,0,0,0.7);
+        justify-content: center;
+        align-items: center;
+      }
+    </style>
+    <style>
+      canvas {
+        border: 1px solid black;
+        margin-bottom: 20px;
+        <!-- width: 80vw; -->
+        <!-- height: 80vh; -->
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Image Viewer</h1>
+    <img id="img1" src="img/a.png" width="200" height="100" />
+    <div class="modal" id="modal-container">
+      <canvas id="modal-canvas" width="1280" height="720" />
+    </div>
+  </body>
+  <script>
+    (()=>{
+      let currentScale = 1;
+
+      let enableModalHide = true;
+      let isDragging = false;
+      let x = 0;
+      let y = 0;
+      let dx = 0;
+      let dy = 0;
+      let startDstX = 0;
+      let startDstY = 0;
+
+      const modal = document.getElementById('modal-container');
+      const modalCanvas = document.getElementById('modal-canvas');
+      const modalCtx = modalCanvas.getContext('2d');
+
+      const img1 = document.getElementById('img1');
+
+      // Open modal window and draw an image onto the canvas with initial parameters.
+      img1.addEventListener('click', (e) => {
+        initialize();
+        showModal(modal);
+        const pos = calcCenterPosition(modalCanvas, e.target);
+        dx = pos.dx;
+        dy = pos.dy;
+        updateImage(modalCanvas, e.target, pos);
+        modalCanvas.addEventListener('wheel', onWheel);
+        modalCanvas.addEventListener('mousedown', onMouseDown);
+        modalCanvas.addEventListener('mousemove', onMouseMove);
+        modalCanvas.addEventListener('mouseleave', onMouseLeave);
+        modalCanvas.addEventListener('mouseup', onMouseUp);
+      });
+
+      // Close modal window if clicked #modal-contaienr
+      modal.addEventListener('click', (e) => {
+        if (enableModalHide && e.target.id === 'modal-container') {
+          hideModal(e.target);
+          modalCanvas.removeEventListener('wheel', onWheel);
+          modalCanvas.removeEventListener('mousedown', onMouseDown);
+          modalCanvas.removeEventListener('mousemove', onMouseMove);
+          modalCanvas.leaveEventListener('mouseleave', onMouseLeave);
+          modalCanvas.removeEventListener('mouseup', onMouseUp);
+        }
+        enableModalHide = true;
+      });
+
+      const initialize = () => {
+        currentScale = 1;
+        idDragging = false;
+        x = 0;
+        y = 0;
+        dx = 0;
+        dy = 0;
+        startDstX = 0;
+        startDstY = 0;
+      }
+
+      const showModal = (modal) => {
+        modal.style.display = 'flex';
+      }
+
+      const hideModal = (modal) => {
+        modal.style.display = 'none';
+        isDragging = false;
+      }
+
+      const calcCenterPosition = (canvas, img) => {
+        return {
+          dx: Math.max(0, (canvas.width - img.naturalWidth) / 2),
+          dy: Math.max(0, (canvas.height - img.naturalHeight) / 2),
+        }
+      }
+
+      // Draw the image with current parameters
+      const updateImage = (canvas, img, pos) => {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(
+          img,
+          pos.dx,
+          pos.dy,
+          img.naturalWidth * currentScale,
+          img.naturalHeight * currentScale
+        );
+      }
+
+      // Wheel event for zooming
+      const onWheel = (e) => {
+        e.preventDefault();
+
+        const zoomFactor = 0.1;
+        const minScale = 0.1;
+        const maxScale = 5;
+
+        const oldScale = currentScale;
+
+        if (e.deltaY < 0) {
+          currentScale += zoomFactor;
+        } else {
+          currentScale -= zoomFactor;
+        }
+
+        // Clamp the scale within min and max limits
+        currentScale = Math.max(minScale, Math.min(maxScale, currentScale));
+
+        // Adjust translation to zoom towards the mouse cursor
+        const scaleRatio = currentScale / oldScale;
+        dx = e.offsetX - (e.offsetX - dx) * scaleRatio;
+        dy = e.offsetY - (e.offsetY - dy) * scaleRatio;
+
+        updateImage(e.target, img1, {dx: dx, dy: dy});
+      }
+
+      // Mouse down event for starting drag
+      const onMouseDown = (e) => {
+        if (e.button !== 0) return; // Only left mouse button
+
+        enableModalHide = true;
+        isDragging = true;
+        x = e.clientX;
+        y = e.clientY;
+        startDstX = dx;
+        startDstY = dy;
+
+        modalCanvas.style.cursor = 'grabbing';
+      }
+
+      // Mouse move event for dragging the image
+      const onMouseMove = (e) => {
+        if (!isDragging) return;
+
+        const deltaX = e.clientX - x;
+        const deltaY = e.clientY - y;
+
+        dx = startDstX + deltaX;
+        dy = startDstY + deltaY;
+
+        updateImage(e.target, img1, {dx: dx, dy: dy});
+      }
+
+      // Mouse leave event for prevent closing modal window and stopping drag an image.
+      const onMouseLeave = (e) => {
+        if (isDragging) {
+          enableModalHide = false;
+        }
+        isDragging = false;
+      }
+
+      // Mouse up event for stopping drag
+      const onMouseUp = (e) => {
+        isDragging = false;
+        modalCanvas.style.cursor = 'grab';
+      }
+
+    })()
+  </script>
+</html>
